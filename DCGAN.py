@@ -4,7 +4,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, BatchNormalization, LeakyReLU, Reshape, Conv2DTranspose, Conv2D, Dropout, Flatten
 from tensorflow.keras.losses import BinaryCrossentropy
 from tensorflow.keras.optimizers import Adam
-import numpy as numpy
+import numpy as np
 import matplotlib.pyplot as plt 
 import time
 import os
@@ -67,6 +67,10 @@ def Build_Discriminator_Model():
 
     return model 
 
+checkpoint_dir = './training_checkpoints'
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+checkpoint = tf.train.Checkpoint(Generator_Optimizer=Generator_Optimizer, Discriminator_Optimizer=Discriminator_Optimizer, Generator=Generator, Discriminator=Discriminator)
+
 
 cross_entropy = BinaryCrossentropy(from_logits=True)
 
@@ -90,8 +94,7 @@ def Discriminator_Loss(real_output, fake_output):
     return total_loss
 
 
-Generator_Optimizer = Adam(1e-4)
-Discriminator_Optimizer = Adam(1e-4)
+
 
 EPOCHS = 50
 NOISE_DIM = 100
@@ -106,7 +109,7 @@ def Train_Step(images):
         real_output = Discriminator(images, training=True)
         fake_output = Discriminator(Generated_Images, training=True)
         Gen_Loss = Generator_Loss(fake_output)
-        Disc_Loss = Discriminator_Loss(Generated_Images, training=True)
+        Disc_Loss = Discriminator_Loss(real_output, fake_output)
 
     Generator_Grads = gen_tape.gradient(Gen_Loss, Generator.trainable_variables)
     Discriminator_Grads = disc_tape.gradient(Disc_Loss, Discriminator.trainable_variables)
@@ -136,7 +139,8 @@ def Train(Dataset, epochs):
             Train_Step(image_batch)
         
         Generate_and_Save_Images(Generator, epoch + 1, seed)
-
+        if(epoch + 1) % 15 == 0:
+          checkpoint.save(file_prefix = checkpoint_prefix)
         print(f'Time for Epoch: {epoch + 1} is {time.time() - start}')
     Generate_and_Save_Images(Generator, epochs, seed)
 
